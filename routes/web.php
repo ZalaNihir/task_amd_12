@@ -21,6 +21,10 @@ Route::get('/dashboard',function(){
     return view('dashboard');
 })->name('dashboard')->middleware('auth');
 
+Route::get('/user/trash', [UserController::class, 'trash'])->name('user.trash');
+Route::put('/user/{id}/restore', [UserController::class, 'restore'])->name('user.restore');
+Route::delete('/user/{id}/force-delete', [UserController::class, 'forceDelete'])->name('user.forceDelete');
 Route::resource('user',UserController::class);
+
 Route::put('updateprofile',[UserController::class,'updateprofile'])->name('user.updateprofile');
 Route::any('/logout', [AuthController::class, 'logout'])->name('logout');

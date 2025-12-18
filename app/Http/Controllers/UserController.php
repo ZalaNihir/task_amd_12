@@ -154,4 +154,34 @@ class UserController extends Controller
 
         return redirect()->back()->with('success', 'Profile updated successfully.');
     }
+
+    public function restore($id)
+    {
+        $user = User::withTrashed()->with('qualifications')->findOrFail($id);
+
+        if ($user->trashed()) {
+            $user->restore();
+            $user->qualifications()->withTrashed()->restore();
+
+            return redirect()->back()->with('success', 'User restored');
+        }
+
+        return redirect()->back()->with('info', 'User is not deleted.');
+    }
+
+    public function forceDelete($id)
+    {
+        $user = User::withTrashed()->with('qualifications')->findOrFail($id);
+        $user->qualifications()->withTrashed()->forceDelete();
+        $user->forceDelete();
+
+        return redirect()->back()->with('success', 'User deleted.');
+    }
+
+    public function trash()
+    {
+        $deletedUsers = User::onlyTrashed()->with('qualifications')->get();
+
+        return view('users.trash', compact('deletedUsers'));
+    }
 }

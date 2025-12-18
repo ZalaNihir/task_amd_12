@@ -1,5 +1,6 @@
 <x-auth>
     <a class="btn btn-sm btn-primary" href="{{route('user.create')}}">Create</a>
+    <a class="btn btn-sm btn-primary" href="{{route('user.trash')}}">Recyclebin</a>
     <table class="table">
         <thead>
             <tr>
