@@ -23,3 +23,4 @@ Route::get('/dashboard',function(){
 
 Route::resource('user',UserController::class);
 Route::put('updateprofile',[UserController::class,'updateprofile'])->name('user.updateprofile');
+Route::any('/logout', [AuthController::class, 'logout'])->name('logout');

@@ -22,12 +22,14 @@
                     <li class="nav-item">
                         <a class="nav-link" aria-current="page" href="{{ route('dashboard') }}">Home</a>
                     </li>
-                    @if (auth()->user()->role == 'admin')
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('user.index') }}">Users</a>
-                    </li>
+                    @if (auth()->user()->role->name == 'ADMIN')
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('user.index') }}">Users</a>
+                        </li>
                     @endif
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('logout') }}">Logout</a>
+                    </li>
                 </ul>
             </div>
         </div>
