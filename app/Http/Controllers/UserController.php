@@ -12,10 +12,11 @@ class UserController extends Controller
 {
     public function index()
     {
-        if(Auth::user()->role == 'admin'){
+        if (Auth::user()->role->name == 'ADMIN') {
             $users = User::paginate(10);
             return view('users.index', compact('users'));
         }
+        return abort(401);
     }
 
     public function create()
@@ -36,71 +37,121 @@ class UserController extends Controller
     public function store(UserRequest $request)
     {
         $user = User::create([
-            'name' => $request->input('name'),
-            'email' => $request->input('email'),
-            'password' => bcrypt($request->input('password')),
-            'role' => $request->input('role'),
-            'phone' => $request->input('phone'),
-            'role' => 'user',
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
+            'phone' => $request->phone,
+            'role' => $request->role,
         ]);
 
-        Qualification::create([
-            'user_id' => $user->id ?? 1,
-            'title' => $request->qualifications['title'],
-            'institute' => $request->qualifications['institute'],
-            'year' => $request->qualifications['year'],
-            'grade' => $request->qualifications['grade'],
-        ]);
+        if ($request->has('qualifications')) {
+            foreach ($request->qualifications as $qualification) {
+                $user->qualifications()->create([
+                    'title' => $qualification['title'] ?? null,
+                    'institute' => $qualification['institute'] ?? null,
+                    'year' => $qualification['year'] ?? null,
+                    'grade' => $qualification['grade'] ?? null,
+                ]);
+            }
+        }
 
-        return redirect()->route('user.index')->with('success', 'User added');
+        return redirect()->route('user.index')
+            ->with('success', 'User added successfully');
     }
+
 
     public function update(UserRequest $request, User $user)
     {
-        $user->name = $request->name;
-        $user->email = $request->email;
-        $user->password = $request->password;
-        $user->role = 'user';
-        $user->phone = $request->phone;
-        $user->save();
+        $user->update([
+            'name' => $request->name,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'role' => $request->role,
+            'password' => $request->filled('password')
+                ? bcrypt($request->password)
+                : $user->password,
+        ]);
 
-        $qualification = Qualification::where('user_id', $user->id)->first();
-        $qualification->title = $request->qualifications['title'];
-        $qualification->institute = $request->qualifications['institute'];
-        $qualification->year = $request->qualifications['year'];
-        $qualification->grade = $request->qualifications['grade'];
-        $qualification->save();
+        $existingIds = $user->qualifications()->pluck('id')->toArray();
+        $submittedIds = [];
 
-        return redirect()->route('user.index');
+        if ($request->has('qualifications')) {
+            foreach ($request->qualifications as $qualification) {
+                if (!empty($qualification['id'])) {
+                    $submittedIds[] = $qualification['id'];
 
+                    Qualification::where('id', $qualification['id'])
+                        ->where('user_id', $user->id)
+                        ->update([
+                            'title' => $qualification['title'],
+                            'institute' => $qualification['institute'],
+                            'year' => $qualification['year'],
+                            'grade' => $qualification['grade'],
+                        ]);
+                } else {
+                    $user->qualifications()->create([
+                        'title' => $qualification['title'],
+                        'institute' => $qualification['institute'],
+                        'year' => $qualification['year'],
+                        'grade' => $qualification['grade'],
+                    ]);
+                }
+            }
+        }
+        $toDelete = array_diff($existingIds, $submittedIds);
+        Qualification::whereIn('id', $toDelete)->delete();
+
+        return redirect()
+            ->route('user.index')
+            ->with('success', 'User updated successfully');
     }
+
 
     public function destroy($id)
     {
-        $user = User::findOrFail($id);
+        $user = User::with('qualifications')->findOrFail($id);
+        $user->qualifications()->delete();
         $user->delete();
 
-        return redirect()->back()->with('success', 'User deleted');
+        return redirect()->back()->with('success', 'User deleted.');
     }
 
-    public function updateprofile(Request $request){
-        $id = Auth::user()->id;
-        $user = User::where('id',$id)->first();
+    public function updateprofile(Request $request)
+    {
+        $user = Auth::user();
         $user->name = $request->name;
-        $user->password = bcrypt($request->password);
         $user->phone = $request->phone;
+        if ($request->password) {
+            $user->password = bcrypt($request->password);
+        }
         $user->save();
 
-        Qualification::updateOrCreate(
-            [
-                'user_id' => $id
-            ],[
-            'user_id' => $user->id,
-            'title' => $request->qualifications['title'],
-            'institute' => $request->qualifications['institute'],
-            'year' => $request->qualifications['year'],
-            'grade' => $request->qualifications['grade'],
-        ]);
-        return redirect()->back();
+        $qualifications = $request->qualifications ?? [];
+
+        foreach ($qualifications as $qual) {
+            if (isset($qual['id'])) {
+                $q = Qualification::find($qual['id']);
+                if ($q) {
+                    $q->update([
+                        'title' => $qual['title'],
+                        'institute' => $qual['institute'],
+                        'year' => $qual['year'],
+                        'grade' => $qual['grade'],
+                    ]);
+                }
+            } else {
+                if (!empty($qual['title']) && !empty($qual['institute'])) {
+                    Qualification::create([
+                        'user_id' => $user->id,
+                        'title' => $qual['title'],
+                        'institute' => $qual['institute'],
+                        'year' => $qual['year'],
+                        'grade' => $qual['grade'],
+                    ]);
+                }
+            }
+        }
+
+        return redirect()->back()->with('success', 'Profile updated successfully.');
     }
 }
